@@ -19,10 +19,11 @@ void enableRawMode(){
     atexit(disableRawMode);//使退出程序时，终端禁用生模式
 
     struct termios raw=orig_termios;
-
-    raw.c_iflag&=~(IXON);
+    //禁用IXON会关闭software flow control而禁用ICRNL会关闭将输入的回车符转换成换行符
+    raw.c_iflag&=~(IXON|ICRNL);
     //echo关掉后自己输入会不会显示；ICANON关掉后会取消行缓冲;ISIG关掉后会禁用符号字符的功能
-    raw.c_lflag &=~(ECHO|ICANON|ISIG);
+    //IEXTEN关掉后会禁用掉输入处理的扩展功能
+    raw.c_lflag &=~(ECHO|ICANON|ISIG|IEXTEN);
 
     tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw);
 }

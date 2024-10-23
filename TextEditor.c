@@ -1,16 +1,29 @@
+/*include*/
 #include<termios.h>
 #include<unistd.h>
 #include<stdlib.h>
+#include<errno.h>
 #include<ctype.h>
 #include<stdio.h>
-
+/*defines*/
+#define CTRL_KEY(k) ((k)&0x1f)//按位与操作，将k的二进制与00011111按位与，得到Ctrl键对应的值
+//Ctrl键对应的值是A-Z的值减去64
+//大写字母的ASCII码是小写字母的ASCII码减去32
+/*data*/
 struct termios orig_termios;
-
+/*terminal*/
+void die(const char*s){
+    perror(s);
+    exit(1);
+}
+//TCSAFLUSH会丢弃未读取的输入数据，等待所有输出数据被发送到终端
 void disableRawMode(){
-    tcsetattr(STDIN_FILENO,TCSAFLUSH,&orig_termios);
+    if(tcsetattr(STDIN_FILENO,TCSAFLUSH,&orig_termios)==-1){
+        die("tcsetattr");
+    }
 }
 void enableRawMode(){
-    tcgetattr(STDIN_FILENO,&orig_termios);//获取当前标准输入模式
+    if(tcgetattr(STDIN_FILENO,&orig_termios)==-1)die("tcgetattr");//获取当前标准输入模式
 
     atexit(disableRawMode);//使退出程序时，终端禁用生模式
 
@@ -31,8 +44,9 @@ void enableRawMode(){
     raw.c_cc[VMIN]=0;
     raw.c_cc[VTIME]=1;
 
-    tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw);
+    if(tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw)==-1)die("tcsetattr");//设置新的标准输入模式
 }
+/*init*/
 int main(){
     char c;
 
@@ -40,14 +54,14 @@ int main(){
 
     while(1){
         c='\0';
-        read(STDIN_FILENO,&c,1);
+        if(read(STDIN_FILENO,&c,1)==-1&&errno!=EAGAIN)die("read");//EAGAIN表示此时没有输入
         if(iscntrl(c)){
             printf("%d\r\n",c);
         }
         else{
             printf("%d(%c)\r\n",c,c);
         }
-        if(c=='q') break;
+        if(c==CTRL_KEY('q')) break;//使用了宏定义，将Ctrl-Q映射为
 
     }
 
